@@ -19,6 +19,7 @@ package com.android.internal.telephony.gsm;
 import android.os.Message;
 import android.util.Log;
 
+import com.android.internal.telephony.HuaweiRIL;
 import com.android.internal.telephony.IccCard;
 import com.android.internal.telephony.IccCardApplication;
 import com.android.internal.telephony.IccConstants;
@@ -57,7 +58,7 @@ public final class SIMFileHandler extends IccFileHandler implements IccConstants
     }
 
     protected String getEFPath(int efid) {
-        if (phone.mCM.needsOldRilFeature("qcomuiccstack")) {
+        if (phone.mCM.getClass() == HuaweiRIL.class) {
             IccCard icccard = phone.getIccCard();
             if (icccard != null && icccard.isApplicationOnIcc(IccCardApplication.AppType.APPTYPE_USIM))
                 return getEFPathForUICC(efid);
