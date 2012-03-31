@@ -1803,6 +1803,7 @@ public final class Settings {
          * disabled by the application.
          */
         public static final String ACCELEROMETER_ROTATION = "accelerometer_rotation";
+	public static final String ACCELEROMETER_LOCKSCREEN_ROTATION = "accelerometer_lockscreen_rotation";
 
         /**
          * Control the type of rotation which can be performed using the accelerometer
