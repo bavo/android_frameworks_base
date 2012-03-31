@@ -1806,6 +1806,11 @@ public final class Settings {
 	public static final String ACCELEROMETER_LOCKSCREEN_ROTATION = "accelerometer_lockscreen_rotation";
 
         /**
+         * Control whether the navigation bar should be displayed or not
+         */
+	public static final String HAS_NAVIGATION_BAR = "has_navigation_bar";
+
+        /**
          * Control the type of rotation which can be performed using the accelerometer
          * if ACCELEROMETER_ROTATION is enabled.
          * Value is a bitwise combination of
