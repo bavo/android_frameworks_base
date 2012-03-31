@@ -355,6 +355,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     // Behavior of volume wake
     boolean mVolumeWakeScreen;
 
+    // Behavior of trackball wake
+    boolean mTrackballWakeScreen;
+
     // Behavior of volbtn music controls
     boolean mVolBtnMusicControls;
     boolean mIsLongPress;
@@ -487,6 +490,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLUME_WAKE_SCREEN), false, this);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.TRACKBALL_WAKE_SCREEN), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLBTN_MUSIC_CONTROLS), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
@@ -1011,6 +1016,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR_DEFAULT);
             mVolumeWakeScreen = (Settings.System.getInt(resolver,
                     Settings.System.VOLUME_WAKE_SCREEN, 0) == 1);
+            mTrackballWakeScreen = (Settings.System.getInt(resolver,
+                    Settings.System.TRACKBALL_WAKE_SCREEN, 0) == 1);
             mVolBtnMusicControls = (Settings.System.getInt(resolver,
                     Settings.System.VOLBTN_MUSIC_CONTROLS, 1) == 1);
             int accelerometerDefault = Settings.System.getInt(resolver,
@@ -2919,87 +2926,90 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
             case KeyEvent.KEYCODE_VOLUME_DOWN:
             case KeyEvent.KEYCODE_VOLUME_UP:
-            case KeyEvent.KEYCODE_VOLUME_MUTE: {
-                if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                    if (down) {
-                        if (isScreenOn && !mVolumeDownKeyTriggered
-                                && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
-                            mVolumeDownKeyTriggered = true;
-                            mVolumeDownKeyTime = event.getDownTime();
-                            mVolumeDownKeyConsumedByScreenshotChord = false;
-                            cancelPendingPowerKeyAction();
-                            interceptScreenshotChord();
-                        }
-                    } else {
-                        mVolumeDownKeyTriggered = false;
-                        cancelPendingScreenshotChordAction();
-                    }
-                } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                    if (down) {
-                        if (isScreenOn && !mVolumeUpKeyTriggered
-                                && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
-                            mVolumeUpKeyTriggered = true;
-                            cancelPendingPowerKeyAction();
-                            cancelPendingScreenshotChordAction();
-                        }
-                    } else {
-                        mVolumeUpKeyTriggered = false;
-                        cancelPendingScreenshotChordAction();
-                    }
-                }
-                if (down) {
-                    ITelephony telephonyService = getTelephonyService();
-                    if (telephonyService != null) {
-                        try {
-                            if (telephonyService.isRinging()) {
-                                // If an incoming call is ringing, either VOLUME key means
-                                // "silence ringer".  We handle these keys here, rather than
-                                // in the InCallScreen, to make sure we'll respond to them
-                                // even if the InCallScreen hasn't come to the foreground yet.
-                                // Look for the DOWN event here, to agree with the "fallback"
-                                // behavior in the InCallScreen.
-                                Log.i(TAG, "interceptKeyBeforeQueueing:"
-                                      + " VOLUME key-down while ringing: Silence ringer!");
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
+            case BTN_MOUSE: {
+		if (keyCode != BTN_MOUSE) {
+		        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+		            if (down) {
+		                if (isScreenOn && !mVolumeDownKeyTriggered
+		                        && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
+		                    mVolumeDownKeyTriggered = true;
+		                    mVolumeDownKeyTime = event.getDownTime();
+		                    mVolumeDownKeyConsumedByScreenshotChord = false;
+		                    cancelPendingPowerKeyAction();
+		                    interceptScreenshotChord();
+		                }
+		            } else {
+		                mVolumeDownKeyTriggered = false;
+		                cancelPendingScreenshotChordAction();
+		            }
+		        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+		            if (down) {
+		                if (isScreenOn && !mVolumeUpKeyTriggered
+		                        && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
+		                    mVolumeUpKeyTriggered = true;
+		                    cancelPendingPowerKeyAction();
+		                    cancelPendingScreenshotChordAction();
+		                }
+		            } else {
+		                mVolumeUpKeyTriggered = false;
+		                cancelPendingScreenshotChordAction();
+		            }
+		        }
+		        if (down) {
+		            ITelephony telephonyService = getTelephonyService();
+		            if (telephonyService != null) {
+		                try {
+		                    if (telephonyService.isRinging()) {
+		                        // If an incoming call is ringing, either VOLUME key means
+		                        // "silence ringer".  We handle these keys here, rather than
+		                        // in the InCallScreen, to make sure we'll respond to them
+		                        // even if the InCallScreen hasn't come to the foreground yet.
+		                        // Look for the DOWN event here, to agree with the "fallback"
+		                        // behavior in the InCallScreen.
+		                        Log.i(TAG, "interceptKeyBeforeQueueing:"
+		                              + " VOLUME key-down while ringing: Silence ringer!");
 
-                                // Silence the ringer.  (It's safe to call this
-                                // even if the ringer has already been silenced.)
-                                telephonyService.silenceRinger();
+		                        // Silence the ringer.  (It's safe to call this
+		                        // even if the ringer has already been silenced.)
+		                        telephonyService.silenceRinger();
 
-                                // And *don't* pass this key thru to the current activity
-                                // (which is probably the InCallScreen.)
-                                result &= ~ACTION_PASS_TO_USER;
-                                break;
-                            }
-                            if (telephonyService.isOffhook()
-                                    && (result & ACTION_PASS_TO_USER) == 0) {
-                                // If we are in call but we decided not to pass the key to
-                                // the application, handle the volume change here.
-                                handleVolumeKey(AudioManager.STREAM_VOICE_CALL, keyCode);
-                                break;
-                            }
-                        } catch (RemoteException ex) {
-                            Log.w(TAG, "ITelephony threw RemoteException", ex);
-                        }
-                    }
-                }
-                if (isMusicActive() && (result & ACTION_PASS_TO_USER) == 0) {
-                    if (mVolBtnMusicControls && down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
-                        mIsLongPress = false;
-                        handleVolumeLongPress(keyCode);
-                        break;
-                    } else {
-                        if (mVolBtnMusicControls && !down) {
-                            handleVolumeLongPressAbort();
-                            if (mIsLongPress) {
-                                break;
-                            }
-                        }
-                        if (!isScreenOn && !mVolumeWakeScreen) {
-                            handleVolumeKey(AudioManager.STREAM_MUSIC, keyCode);
-                        }
-                    }
-                }
-                if (isScreenOn || !mVolumeWakeScreen) {
+		                        // And *don't* pass this key thru to the current activity
+		                        // (which is probably the InCallScreen.)
+		                        result &= ~ACTION_PASS_TO_USER;
+		                        break;
+		                    }
+		                    if (telephonyService.isOffhook()
+		                            && (result & ACTION_PASS_TO_USER) == 0) {
+		                        // If we are in call but we decided not to pass the key to
+		                        // the application, handle the volume change here.
+		                        handleVolumeKey(AudioManager.STREAM_VOICE_CALL, keyCode);
+		                        break;
+		                    }
+		                } catch (RemoteException ex) {
+		                    Log.w(TAG, "ITelephony threw RemoteException", ex);
+		                }
+		            }
+		        }
+		        if (isMusicActive() && (result & ACTION_PASS_TO_USER) == 0) {
+		            if (mVolBtnMusicControls && down && (keyCode != KeyEvent.KEYCODE_VOLUME_MUTE)) {
+		                mIsLongPress = false;
+		                handleVolumeLongPress(keyCode);
+		                break;
+		            } else {
+		                if (mVolBtnMusicControls && !down) {
+		                    handleVolumeLongPressAbort();
+		                    if (mIsLongPress) {
+		                        break;
+		                    }
+		                }
+		                if (!isScreenOn && !mVolumeWakeScreen) {
+		                    handleVolumeKey(AudioManager.STREAM_MUSIC, keyCode);
+		                }
+		            }
+		        }
+		}
+                if (isScreenOn || (!mVolumeWakeScreen && !mTrackballWakeScreen)) {
                     break;
                 } else if (keyguardActive) {
                     keyCode = KeyEvent.KEYCODE_POWER;
