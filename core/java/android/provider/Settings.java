@@ -2303,6 +2303,12 @@ public final class Settings {
         public static final String VOLBTN_MUSIC_CONTROLS = "volbtn_music_controls";
 
         /**
+         * Whether or not the search key should provide the recent APP List
+         * @hide
+         */
+        public static final String RECENT_APP_LIST_SEARCH_KEY = "recent_app_list_search_key";
+
+        /**
          * Whether national data roaming should be used.
          * @hide
          */

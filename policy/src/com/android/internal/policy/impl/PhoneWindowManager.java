@@ -1712,18 +1712,33 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 }
             }
         } else if (keyCode == KeyEvent.KEYCODE_SEARCH) {
-            if (down) {
-                if (repeatCount == 0) {
-                    mShortcutKeyPressed = keyCode;
-                    mConsumeShortcutKeyUp = false;
+	    if (Settings.System.getInt(mContext.getContentResolver(),
+		    Settings.System.RECENT_APP_LIST_SEARCH_KEY, 1) == 1) {
+
+		if (down && repeatCount == 0 && !keyguardOn) {
+		        try {
+				mStatusBarService.toggleRecentApps();
+			} catch (RemoteException e) {
+				Slog.e(TAG, "RemoteException when showing recent apps", e);
+			}
+		}
+
+		return -1;
+
+            } else {
+		if (down) {
+                    if (repeatCount == 0) {
+                        mShortcutKeyPressed = keyCode;
+                        mConsumeShortcutKeyUp = false;
+                    }
+                } else if (keyCode == mShortcutKeyPressed) {
+                    mShortcutKeyPressed = -1;
+                    if (mConsumeShortcutKeyUp) {
+                        mConsumeShortcutKeyUp = false;
+                        return -1;
+                    }
                 }
-            } else if (keyCode == mShortcutKeyPressed) {
-                mShortcutKeyPressed = -1;
-                if (mConsumeShortcutKeyUp) {
-                    mConsumeShortcutKeyUp = false;
-                    return -1;
-                }
-            }
+	    }
             return 0;
         } else if (keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
             if (down && repeatCount == 0 && !keyguardOn) {
