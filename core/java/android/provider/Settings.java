@@ -1819,10 +1819,15 @@ public final class Settings {
          * disabled by the application.
          */
         public static final String ACCELEROMETER_ROTATION = "accelerometer_rotation";
+
+        /**
+         * @hide
+         */
 	public static final String ACCELEROMETER_LOCKSCREEN_ROTATION = "accelerometer_lockscreen_rotation";
 
         /**
          * Control whether the navigation bar should be displayed or not
+         * @hide
          */
 	public static final String HAS_NAVIGATION_BAR = "has_navigation_bar";
 
