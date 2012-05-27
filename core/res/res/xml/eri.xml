@@ -19,7 +19,7 @@
      The icon is turned OFF if then IconIndex = 1 -->
 
 <EriFile VersionNumber="1357"
-         NumberOfEriEntries="12"
+         NumberOfEriEntries="13"
          EriFileType="1">
 
          <CallPromptId Id="0"
@@ -112,6 +112,13 @@
                   IconIndex="75"
                   IconMode="1"
                   EriText="T-CDMA Roam 75"
+                  CallPromptId="0"
+                  AlertId="0"/>
+
+         <EriInfo RoamingIndicator="128"
+                  IconIndex="1"
+                  IconMode="0"
+                  EriText="US Cellular"
                   CallPromptId="0"
                   AlertId="0"/>
 
