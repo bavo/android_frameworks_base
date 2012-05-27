@@ -213,30 +213,55 @@ public class QualcommSharedRIL extends RIL implements CommandsInterface {
 
         boolean oldRil = needsOldRilFeature("datacall");
 
-        if (!oldRil)
-           return super.getDataCallState(p, version);
+        if (!oldRil && version < 5) {
+            return super.getDataCallState(p, version);
+        } else if (!oldRil) {
+            dataCall.version = version;
+            dataCall.status = p.readInt();
+            dataCall.suggestedRetryTime = p.readInt();
+            dataCall.cid = p.readInt();
+            dataCall.active = p.readInt();
+            dataCall.type = p.readString();
+            dataCall.ifname = p.readString();
+            if ((dataCall.status == DataConnection.FailCause.NONE.getErrorCode()) &&
+                    TextUtils.isEmpty(dataCall.ifname) && dataCall.active != 0) {
+              throw new RuntimeException("getDataCallState, no ifname");
+            }
+            String addresses = p.readString();
+            if (!TextUtils.isEmpty(addresses)) {
+                dataCall.addresses = addresses.split(" ");
+            }
+            String dnses = p.readString();
+            if (!TextUtils.isEmpty(dnses)) {
+                dataCall.dnses = dnses.split(" ");
+            }
+            String gateways = p.readString();
+            if (!TextUtils.isEmpty(gateways)) {
+                dataCall.gateways = gateways.split(" ");
+            }
+        } else {
+            dataCall.version = 4; // was dataCall.version = version;
+            dataCall.cid = p.readInt();
+            dataCall.active = p.readInt();
+            dataCall.type = p.readString();
+            dataCall.ifname = mLastDataIface[dataCall.cid];
+            p.readString(); // skip APN
 
-        dataCall.version = 4; // was dataCall.version = version;
-        dataCall.cid = p.readInt();
-        dataCall.active = p.readInt();
-        dataCall.type = p.readString();
-        dataCall.ifname = mLastDataIface[dataCall.cid];
-        p.readString(); // skip APN
+            if (TextUtils.isEmpty(dataCall.ifname)) {
+                dataCall.ifname = mLastDataIface[0];
+            }
 
-        if (TextUtils.isEmpty(dataCall.ifname)) {
-            dataCall.ifname = mLastDataIface[0];
+            String addresses = p.readString();
+            if (!TextUtils.isEmpty(addresses)) {
+                dataCall.addresses = addresses.split(" ");
+            }
+            p.readInt(); // RadioTechnology
+            p.readInt(); // inactiveReason
+
+            dataCall.dnses = new String[2];
+            dataCall.dnses[0] = SystemProperties.get("net."+dataCall.ifname+".dns1");
+            dataCall.dnses[1] = SystemProperties.get("net."+dataCall.ifname+".dns2");
         }
-
-        String addresses = p.readString();
-        if (!TextUtils.isEmpty(addresses)) {
-            dataCall.addresses = addresses.split(" ");
-        }
-        p.readInt(); // RadioTechnology
-        p.readInt(); // inactiveReason
-
-        dataCall.dnses = new String[2];
-        dataCall.dnses[0] = SystemProperties.get("net."+dataCall.ifname+".dns1");
-        dataCall.dnses[1] = SystemProperties.get("net."+dataCall.ifname+".dns2");
 
         return dataCall;
     }
@@ -257,7 +282,8 @@ public class QualcommSharedRIL extends RIL implements CommandsInterface {
         dataCall.cid = 0; // Integer.parseInt(p.readString());
         p.readString();
         dataCall.ifname = p.readString();
-        if (TextUtils.isEmpty(dataCall.ifname)) {
+        if ((dataCall.status == DataConnection.FailCause.NONE.getErrorCode()) &&
+             TextUtils.isEmpty(dataCall.ifname) && dataCall.active != 0) {
             throw new RuntimeException(
                     "RIL_REQUEST_SETUP_DATA_CALL response, no ifname");
         }
@@ -532,15 +558,25 @@ public class QualcommSharedRIL extends RIL implements CommandsInterface {
         int dataPosition = p.dataPosition(); // save off position within the Parcel
         int response = p.readInt();
 
+        /* Assume devices needing the "datacall" GB-compatibility flag are
+         * running GB RILs, so skip 1031-1034 for those */
+        if (needsOldRilFeature("datacall")) {
+            switch(response) {
+                 case 1031:
+                 case 1032:
+                 case 1033:
+                 case 1034:
+                     ret = responseVoid(p);
+                     return;
+            }
+        }
+
         switch(response) {
             case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: ret =  responseVoid(p);
-            case 1031: ret = responseVoid(p); break; // RIL_UNSOL_VOICE_RADIO_TECH_CHANGED
-            case 1032: ret = responseInts(p); break; // RIL_UNSOL_TETHERED_MODE_STATE_CHANGED
-            case 1033: ret = responseVoid(p); break; // RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED
-            case 1034: ret = responseVoid(p); break; // RIL_UNSOL_CDMA_SUBSCRIPTION_SOURCE_CHANGED
-            case 1035: ret = responseVoid(p); break; // RIL_UNSOL_CDMA_PRL_CHANGED
+            case 1035: ret = responseVoid(p); break; // RIL_UNSOL_VOICE_RADIO_TECH_CHANGED
             case 1036: ret = responseVoid(p); break; // RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED
             case 1037: ret = responseVoid(p); break; // RIL_UNSOL_EXIT_EMERGENCY_CALLBACK_MODE
+            case 1038: ret = responseVoid(p); break; // RIL_UNSOL_DATA_NETWORK_STATE_CHANGED
 
             default:
                 // Rewind the Parcel
@@ -549,17 +585,13 @@ public class QualcommSharedRIL extends RIL implements CommandsInterface {
                 // Forward responses that we are not overriding to the super class
                 super.processUnsolicited(p);
                 return;
-	}
+        }
 
         switch(response) {
             case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED:
                 int state = p.readInt();
                 setRadioStateFromRILInt(state);
             break;
-            case 1031:
-            case 1032:
-            case 1033:
-            case 1034:
             case 1035:
             case 1036:
                 break;
@@ -570,6 +602,8 @@ public class QualcommSharedRIL extends RIL implements CommandsInterface {
                     mExitEmergencyCallbackModeRegistrants.notifyRegistrants(
                                         new AsyncResult (null, null, null));
                 }
+                break;
+            case 1038:
                 break;
         }
     }
