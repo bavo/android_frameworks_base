@@ -437,6 +437,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     boolean mHideLockScreen;
     boolean mDismissKeyguard;
     boolean mHomePressed;
+    boolean mAppSwitchPressed;
     Intent mHomeIntent;
     Intent mCarDockIntent;
     Intent mDeskDockIntent;
@@ -498,8 +499,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLUME_WAKE_SCREEN), false, this);
-            resolver.registerContentObserver(Settings.System.getUriFor(
-		    Settings.System.TRACKBALL_WAKE_SCREEN), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLBTN_MUSIC_CONTROLS), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
@@ -1010,6 +1009,13 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
 	mHasNavigationBar = (Settings.System.getInt(mContext.getContentResolver(),
  		Settings.System.HAS_NAVIGATION_BAR, 0) == 1);
+        // Allow a system property to override this. Used by the emulator.
+        // See also hasNavigationBar().
+        String navBarOverride = SystemProperties.get("qemu.hw.mainkeys");
+        if (! "".equals(navBarOverride)) {
+            if      (navBarOverride.equals("1")) mHasNavigationBar = false;
+            else if (navBarOverride.equals("0")) mHasNavigationBar = true;
+        }
 
         mNavigationBarHeight = mHasNavigationBar
                 ? mContext.getResources().getDimensionPixelSize(
@@ -1771,12 +1777,20 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             }
             return 0;
         } else if (keyCode == KeyEvent.KEYCODE_APP_SWITCH) {
-            if (down && repeatCount == 0 && !keyguardOn) {
-                try {
-			mStatusBarService.toggleRecentApps();
-		} catch (RemoteException e) {
-			Slog.e(TAG, "RemoteException when showing recent apps", e);
-		}
+            if (mAppSwitchPressed && !down) {
+                mAppSwitchPressed = false;
+                if (!canceled && !keyguardOn) {
+                    sendCloseSystemWindows(SYSTEM_DIALOG_REASON_RECENT_APPS);
+                    try {
+                        mStatusBarService.toggleRecentApps();
+                    } catch (RemoteException e) {
+                    }
+                }
+                return -1;
+            }
+
+            if (down && repeatCount == 0) {
+                mAppSwitchPressed = true;
             }
             return -1;
         } else if (keyCode == KeyEvent.KEYCODE_BACK) {
@@ -3189,7 +3203,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         final int policyFlag = (policyFlags
                 & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED));
 
-        if (policyFlag != 0 && (policyFlag != 3 || mTrackballWakeScreen)) {
+        final boolean isWakeMotion = (policyFlags
+                & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED)) != 0;
+
+        if (isWakeMotion || (policyFlag != 0 && (policyFlag != 3 || mTrackballWakeScreen))) {
             if (mKeyguardMediator.isShowing()) {
                 // If the keyguard is showing, let it decide what to do with the wake motion.
                 mKeyguardMediator.onWakeMotionWhenKeyguardShowingTq();
