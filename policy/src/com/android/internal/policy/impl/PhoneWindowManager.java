@@ -500,6 +500,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLUME_WAKE_SCREEN), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
+		    Settings.System.TRACKBALL_WAKE_SCREEN), false, this);
+	    resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.VOLBTN_MUSIC_CONTROLS), false, this);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.ACCELEROMETER_ROTATION), false, this);
