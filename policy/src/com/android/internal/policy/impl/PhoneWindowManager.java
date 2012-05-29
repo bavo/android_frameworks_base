@@ -3203,10 +3203,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         final int policyFlag = (policyFlags
                 & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED));
 
-        final boolean isWakeMotion = (policyFlags
-                & (WindowManagerPolicy.FLAG_WAKE | WindowManagerPolicy.FLAG_WAKE_DROPPED)) != 0;
-
-        if (isWakeMotion || (policyFlag != 0 && (policyFlag != 3 || mTrackballWakeScreen))) {
+        if (policyFlag != 0 && (policyFlag != 3 || mTrackballWakeScreen)) {
             if (mKeyguardMediator.isShowing()) {
                 // If the keyguard is showing, let it decide what to do with the wake motion.
                 mKeyguardMediator.onWakeMotionWhenKeyguardShowingTq();
